@@ -60,11 +60,13 @@ class GraphRAG:
         self.chunks: List[Chunk] = []
         self.lock = threading.Lock()
         # fallback vectors if faiss unavailable
-        self.vecs: List[np.ndarray] = []
         if faiss is not None:
             self.index = faiss.IndexFlatIP(self.dim)
+            self.vecs = None
         else:
             self.index = None
+            # store vectors in a single array to avoid per-query copying
+            self.vecs = np.empty((0, self.dim), dtype="float32")
 
         # Reranker
         self.reranker = Ranker()
@@ -120,27 +122,26 @@ class GraphRAG:
         env = os.getenv("QWEN_MODEL", "").strip()
         if env:
             return env
-        """RAM/GPU probing use below code dynamically choose qwen models"""
-        # try:
-        #     avail_ram = int(psutil.virtual_memory().available / (1024**3))
-        # except Exception:
-        #     avail_ram = 4
-        # has_cuda = torch.cuda.is_available()
-        # vram_gb = 0
-        # if has_cuda:
-        #     try:
-        #         vram_gb = torch.cuda.get_device_properties(
-        #             0).total_memory // (1024**3)
-        #     except Exception:
-        #         vram_gb = 0
+        """Dynamically choose a Qwen model based on available system memory."""
+        try:
+            avail_ram = int(psutil.virtual_memory().available / (1024**3))
+        except Exception:
+            avail_ram = 4
+        has_cuda = torch.cuda.is_available()
+        vram_gb = 0
+        if has_cuda:
+            try:
+                vram_gb = torch.cuda.get_device_properties(0).total_memory // (1024**3)
+            except Exception:
+                vram_gb = 0
 
-        # # Upgrade path first
-        # if has_cuda and vram_gb >= 16:
-        #     return "Qwen/Qwen2.5-7B-Instruct"
-        # if avail_ram >= 20:
-        #     return "Qwen/Qwen2.5-3B-Instruct"
-        # if avail_ram >= 8:
-        #     return "Qwen/Qwen2.5-1.5B-Instruct"
+        # Prefer larger models only when ample resources are available
+        if has_cuda and vram_gb >= 16:
+            return "Qwen/Qwen2.5-7B-Instruct"
+        if avail_ram >= 20:
+            return "Qwen/Qwen2.5-3B-Instruct"
+        if avail_ram >= 8:
+            return "Qwen/Qwen2.5-1.5B-Instruct"
         return "Qwen/Qwen2.5-0.5B-Instruct"
 
     def _pick_device_dtype(self):
@@ -158,17 +159,18 @@ class GraphRAG:
                     self.chunks.append(Chunk(**json.loads(line)))
         if faiss is not None and os.path.exists(FAISS_PATH):
             self.index = faiss.read_index(FAISS_PATH)
-        elif os.path.exists(NPY_PATH):
+        elif self.index is None and os.path.exists(NPY_PATH):
             try:
-                self.vecs = np.load(NPY_PATH).tolist()
+                # keep vectors as a single array for efficient similarity search
+                self.vecs = np.load(NPY_PATH)
             except Exception:
-                self.vecs = []
+                self.vecs = np.empty((0, self.dim), dtype="float32")
 
     def _save(self):
         if self.index is not None and faiss is not None:
             faiss.write_index(self.index, FAISS_PATH)
-        else:
-            np.save(NPY_PATH, np.array(self.vecs, dtype="float32"))
+        elif self.vecs is not None:
+            np.save(NPY_PATH, self.vecs)
         with open(MAP_PATH, "w", encoding="utf-8") as f:
             for c in self.chunks:
                 f.write(json.dumps(c.__dict__) + "\n")
@@ -194,8 +196,34 @@ class GraphRAG:
             out.append(x)
         return out[:12]
 
-    def ingest(self, docs: List[Dict[str, Any]]) -> Dict[str, Any]:
-        texts, metas, ents_map = [], [], {}
+    def ingest(self, docs: List[Dict[str, Any]], batch_size: int = 32) -> Dict[str, Any]:
+        """Ingest documents in small batches to limit peak memory usage."""
+
+        batch_texts: List[str] = []
+        batch_meta: List[Dict[str, Any]] = []
+        ingested = 0
+        ents_added = 0
+
+        def _process_batch():
+            nonlocal batch_texts, batch_meta, ingested
+            if not batch_texts:
+                return
+            vectors = np.array([v for v in self.embedder.embed(batch_texts)], dtype="float32")
+            with self.lock:
+                if self.index is not None and faiss is not None:
+                    faiss.normalize_L2(vectors)
+                    self.index.add(vectors)
+                else:
+                    norms = np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-12
+                    vectors = vectors / norms
+                    self.vecs = np.vstack([self.vecs, vectors]) if self.vecs.size else vectors
+                for m in batch_meta:
+                    ch = Chunk(**m)
+                    self.chunks.append(ch)
+                    self.graph.add_claim(ch.chunk_id, ch.source_uri, ch.entities)
+            ingested += len(batch_meta)
+            batch_texts, batch_meta = [], []
+
         for d in docs:
             text = d["text"]
             ext_id = d.get("external_id", "doc")
@@ -207,39 +235,26 @@ class GraphRAG:
                 cid = f"chunk:{_hash(ext_id+'|'+str(i)+'|'+_hash(t))[:12]}"
                 entities = self._extract_entities(t)
                 meta = {
-                    "chunk_id": cid, "text": t,
+                    "chunk_id": cid,
+                    "text": t,
                     "source_uri": d.get("provenance", {}).get("uri"),
                     "observed_at": d.get("provenance", {}).get("observed_at"),
                     "valid_from": d.get("valid_from"),
                     "valid_to": d.get("valid_to"),
-                    "entities": entities
+                    "entities": entities,
                 }
-                texts.append(t)
-                metas.append(meta)
-                ents_map[cid] = entities
+                ents_added += len(entities)
+                batch_texts.append(t)
+                batch_meta.append(meta)
+                if len(batch_texts) >= batch_size:
+                    _process_batch()
 
-        # embed
-        vectors = np.array(
-            [v for v in self.embedder.embed(texts)], dtype="float32")
-        if self.index is not None and faiss is not None:
-            faiss.normalize_L2(vectors)
-        else:
-            norms = np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-12
-            vectors = vectors / norms
+        _process_batch()
 
         with self.lock:
-            if self.index is not None and faiss is not None:
-                self.index.add(vectors)
-            else:
-                self.vecs.extend(vectors)
-            for m in metas:
-                ch = Chunk(**m)
-                self.chunks.append(ch)
-                # add to graph
-                self.graph.add_claim(ch.chunk_id, ch.source_uri, ch.entities)
             self._save()
 
-        return {"ingested": len(metas), "entities_added": sum(len(v) for v in ents_map.values())}
+        return {"ingested": ingested, "entities_added": ents_added}
 
     # ---------------------- Retrieval / Multi-hop ----------------------
     def _initial_retrieve(self, query: str, k: int, time_hint: Dict[str, Any]):
@@ -253,10 +268,9 @@ class GraphRAG:
             scs = scores[0]
         else:
             qvec /= (np.linalg.norm(qvec, axis=1, keepdims=True) + 1e-12)
-            if not self.vecs:
+            if self.vecs.size == 0:
                 return [], []
-            mat = np.array(self.vecs)
-            scs = mat @ qvec[0]
+            scs = self.vecs @ qvec[0]
             idxs = np.argsort(-scs)[:max(k*3, k)]
             scs = scs[idxs]
         base = []
@@ -333,11 +347,10 @@ class GraphRAG:
                 iter_pairs = zip(idxs[0], scores[0])
             else:
                 qvec /= (np.linalg.norm(qvec, axis=1, keepdims=True) + 1e-12)
-                if not self.vecs:
+                if self.vecs.size == 0:
                     iter_pairs = []
                 else:
-                    mat = np.array(self.vecs)
-                    scs = mat @ qvec[0]
+                    scs = self.vecs @ qvec[0]
                     idxs = np.argsort(-scs)[:k]
                     iter_pairs = zip(idxs, scs[idxs])
             for i, s in iter_pairs:
