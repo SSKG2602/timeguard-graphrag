@@ -83,7 +83,7 @@ class GraphRAG:
         # Load persisted index
         self._load()
 
-        # Qwen model - keep original tech, auto-select size if not specified
+        # Qwen model - keep original tech, default to smallest size if not specified
         self.model_name = model_name or self._auto_select_qwen()
         self.device, self.dtype = self._pick_device_dtype()
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -120,27 +120,27 @@ class GraphRAG:
         env = os.getenv("QWEN_MODEL", "").strip()
         if env:
             return env
-        # RAM/GPU probing
-        try:
-            avail_ram = int(psutil.virtual_memory().available / (1024**3))
-        except Exception:
-            avail_ram = 4
-        has_cuda = torch.cuda.is_available()
-        vram_gb = 0
-        if has_cuda:
-            try:
-                vram_gb = torch.cuda.get_device_properties(
-                    0).total_memory // (1024**3)
-            except Exception:
-                vram_gb = 0
+        """RAM/GPU probing use below code dynamically choose qwen models"""
+        # try:
+        #     avail_ram = int(psutil.virtual_memory().available / (1024**3))
+        # except Exception:
+        #     avail_ram = 4
+        # has_cuda = torch.cuda.is_available()
+        # vram_gb = 0
+        # if has_cuda:
+        #     try:
+        #         vram_gb = torch.cuda.get_device_properties(
+        #             0).total_memory // (1024**3)
+        #     except Exception:
+        #         vram_gb = 0
 
-        # Upgrade path first
-        if has_cuda and vram_gb >= 16:
-            return "Qwen/Qwen2.5-7B-Instruct"
-        if avail_ram >= 20:
-            return "Qwen/Qwen2.5-3B-Instruct"
-        if avail_ram >= 8:
-            return "Qwen/Qwen2.5-1.5B-Instruct"
+        # # Upgrade path first
+        # if has_cuda and vram_gb >= 16:
+        #     return "Qwen/Qwen2.5-7B-Instruct"
+        # if avail_ram >= 20:
+        #     return "Qwen/Qwen2.5-3B-Instruct"
+        # if avail_ram >= 8:
+        #     return "Qwen/Qwen2.5-1.5B-Instruct"
         return "Qwen/Qwen2.5-0.5B-Instruct"
 
     def _pick_device_dtype(self):
