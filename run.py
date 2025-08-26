@@ -86,6 +86,9 @@ def wait_until_ready(timeout_sec=900):
         if j and j.get("status") == "ready":
             return True
         state = j.get("status") if isinstance(j, dict) else "down"
+        if state == "error":
+            log(f"Backend status: error ({j.get('error')}) …")
+            return False
         log(f"Backend status: {state} …")
         time.sleep(2.0)
     return False
