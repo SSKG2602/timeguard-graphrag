@@ -8,7 +8,10 @@ from dataclasses import dataclass, field
 import numpy as np
 
 import psutil
-import faiss
+try:
+    import faiss  # optional high-performance vector search
+except Exception:  # pragma: no cover - faiss may not be available on all platforms
+    faiss = None
 import torch
 import spacy
 from tqdm import tqdm
@@ -23,6 +26,7 @@ from graph_store import GraphStore
 IDX_DIR = "indexes"
 MAP_PATH = os.path.join(IDX_DIR, "chunks.jsonl")
 FAISS_PATH = os.path.join(IDX_DIR, "faiss.index")
+NPY_PATH = os.path.join(IDX_DIR, "vectors.npy")
 
 os.makedirs(IDX_DIR, exist_ok=True)
 
@@ -48,9 +52,14 @@ class GraphRAG:
         # Embeddings
         self.embedder = TextEmbedding()
         self.dim = self._infer_embed_dim()
-        self.index = faiss.IndexFlatIP(self.dim)
         self.chunks: List[Chunk] = []
         self.lock = threading.Lock()
+        # fallback vectors if faiss unavailable
+        self.vecs: List[np.ndarray] = []
+        if faiss is not None:
+            self.index = faiss.IndexFlatIP(self.dim)
+        else:
+            self.index = None
 
         # Reranker
         self.reranker = Ranker()
@@ -138,14 +147,23 @@ class GraphRAG:
 
     # ---------------------- Persistence ----------------------
     def _load(self):
-        if os.path.exists(FAISS_PATH) and os.path.exists(MAP_PATH):
-            self.index = faiss.read_index(FAISS_PATH)
+        if os.path.exists(MAP_PATH):
             with open(MAP_PATH, "r", encoding="utf-8") as f:
                 for line in f:
                     self.chunks.append(Chunk(**json.loads(line)))
+        if faiss is not None and os.path.exists(FAISS_PATH):
+            self.index = faiss.read_index(FAISS_PATH)
+        elif os.path.exists(NPY_PATH):
+            try:
+                self.vecs = np.load(NPY_PATH).tolist()
+            except Exception:
+                self.vecs = []
 
     def _save(self):
-        faiss.write_index(self.index, FAISS_PATH)
+        if self.index is not None and faiss is not None:
+            faiss.write_index(self.index, FAISS_PATH)
+        else:
+            np.save(NPY_PATH, np.array(self.vecs, dtype="float32"))
         with open(MAP_PATH, "w", encoding="utf-8") as f:
             for c in self.chunks:
                 f.write(json.dumps(c.__dict__) + "\n")
@@ -198,10 +216,17 @@ class GraphRAG:
         # embed
         vectors = np.array(
             [v for v in self.embedder.embed(texts)], dtype="float32")
-        faiss.normalize_L2(vectors)
+        if self.index is not None and faiss is not None:
+            faiss.normalize_L2(vectors)
+        else:
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True) + 1e-12
+            vectors = vectors / norms
 
         with self.lock:
-            self.index.add(vectors)
+            if self.index is not None and faiss is not None:
+                self.index.add(vectors)
+            else:
+                self.vecs.extend(vectors)
             for m in metas:
                 ch = Chunk(**m)
                 self.chunks.append(ch)
@@ -216,10 +241,19 @@ class GraphRAG:
         # embed query
         qvec = np.array(
             [v for v in self.embedder.embed([query])], dtype="float32")
-        faiss.normalize_L2(qvec)
-        scores, idxs = self.index.search(qvec, max(k*3, k))
-        idxs = idxs[0]
-        scs = scores[0]
+        if self.index is not None and faiss is not None:
+            faiss.normalize_L2(qvec)
+            scores, idxs = self.index.search(qvec, max(k*3, k))
+            idxs = idxs[0]
+            scs = scores[0]
+        else:
+            qvec /= (np.linalg.norm(qvec, axis=1, keepdims=True) + 1e-12)
+            if not self.vecs:
+                return [], []
+            mat = np.array(self.vecs)
+            scs = mat @ qvec[0]
+            idxs = np.argsort(-scs)[:max(k*3, k)]
+            scs = scs[idxs]
         base = []
         for i, s in zip(idxs, scs):
             if i < 0:
@@ -287,9 +321,20 @@ class GraphRAG:
         for q2 in expansions:
             qvec = np.array(
                 [v for v in self.embedder.embed([q2])], dtype="float32")
-            faiss.normalize_L2(qvec)
-            scores, idxs = self.index.search(qvec, k)
-            for i, s in zip(idxs[0], scores[0]):
+            if self.index is not None and faiss is not None:
+                faiss.normalize_L2(qvec)
+                scores, idxs = self.index.search(qvec, k)
+                iter_pairs = zip(idxs[0], scores[0])
+            else:
+                qvec /= (np.linalg.norm(qvec, axis=1, keepdims=True) + 1e-12)
+                if not self.vecs:
+                    iter_pairs = []
+                else:
+                    mat = np.array(self.vecs)
+                    scs = mat @ qvec[0]
+                    idxs = np.argsort(-scs)[:k]
+                    iter_pairs = zip(idxs, scs[idxs])
+            for i, s in iter_pairs:
                 if i < 0:
                     continue
                 ch = self.chunks[i]
