@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: timeguard-graphrag
+    env: python
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python -m spacy download en_core_web_sm
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+        value: "python"
+      - key: TIMEZONE
+        value: "Asia/Kolkata"
+      - key: DAYFIRST
+        value: "1"
+      - key: FISCAL_YEAR_START_MONTH
+        value: "4"
+      - key: FISCAL_YEAR_START_DAY
+        value: "1"
+      - key: QWEN_MODEL
+        value: ""

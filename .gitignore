@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.ENV
+.env.*
+
+# Build / wheels / dist
+build/
+dist/
+*.whl
+
+# Models & artifacts (adjust as needed)
+*.pt
+*.bin
+*.onnx
+*.dylib
+*.so
+*.h5
+checkpoints/
+models/
+data/
+logs/
+
+# Editors
+.vscode/
+.idea/
