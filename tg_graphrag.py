@@ -15,6 +15,11 @@ except Exception:  # pragma: no cover - faiss may not be available on all platfo
 import torch
 import spacy
 from tqdm import tqdm
+# tqdm 5.0 removed the internal `_lock` attribute which some libraries still
+# reference.  Provide a fallback so imports that expect it continue to work
+# across tqdm versions.
+if not hasattr(tqdm, "_lock"):
+    tqdm._lock = threading.RLock()
 
 from fastembed import TextEmbedding
 from flashrank import Ranker, RerankRequest
