@@ -21,4 +21,4 @@ services:
       - key: FISCAL_YEAR_START_DAY
         value: "1"
       - key: QWEN_MODEL
-        value: ""
+        value: "Qwen/Qwen2.5-0.5B-Instruct"
