@@ -273,7 +273,8 @@ class GraphRAG:
         req = RerankRequest(query=query, passages=[
                             {"id": b["chunk_id"], "text": b["text"]} for b in base])
         rer = self.reranker.rerank(req)
-        rmap = {x["id"]: x["relevance_score"] for x in rer}
+        rmap = {x["id"]: x.get("relevance_score", x.get("score", 0.0))
+                for x in rer}
         for b in base:
             w_t = time_compat(b["valid_from"], b["valid_to"], time_hint)
             b["score_rerank"] = float(rmap.get(b["chunk_id"], 0.0))
@@ -353,7 +354,8 @@ class GraphRAG:
         req = RerankRequest(query=query, passages=[
                             {"id": b["chunk_id"], "text": b["text"]} for b in bag])
         rer = self.reranker.rerank(req)
-        rmap = {x["id"]: x["relevance_score"] for x in rer}
+        rmap = {x["id"]: x.get("relevance_score", x.get("score", 0.0))
+                for x in rer}
         for b in bag:
             w_t = time_compat(b["valid_from"], b["valid_to"], time_hint)
             b["score_rerank"] = float(rmap.get(b["chunk_id"], 0.0))
