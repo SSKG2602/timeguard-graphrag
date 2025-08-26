@@ -10,7 +10,7 @@ accelerate==0.33.0
 torch==2.2.2
 fastembed==0.3.5
 flashrank==0.2.7
-faiss-cpu==1.8.0.post1
+faiss-cpu==1.8.0.post1; platform_system == "Linux"
 spacy==3.7.4
 python-dateutil==2.9.0.post0
 sentencepiece==0.2.0
