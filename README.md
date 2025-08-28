@@ -3,7 +3,7 @@ A temporal-aware **Graph-RAG (Retrieval-Augmented Generation)** system that unde
 
 **Author:** [SSKG (Shreyas Shashi Kumar Gowda)](https://github.com/SSKG2602)  
 
----
+----
 
 ## 📦 Features  
 
