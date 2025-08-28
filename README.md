@@ -128,9 +128,9 @@ Response:
   "answer": "Sarah Johnson is the CEO as of today.",
   "time": {"operator": "AS_OF", "at": "2025-08-28"}
 }
+```
 
-
-
+```
 Real-World Applications
 
 
