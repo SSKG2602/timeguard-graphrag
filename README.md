@@ -1,95 +1,94 @@
-TimeGuard Graph-RAG
+# ⏳ TimeGuard Graph-RAG 🕒  
+A temporal-aware **Graph-RAG (Retrieval-Augmented Generation)** system that understands **time-sensitive queries** and provides accurate, contextual answers.  
 
-A  temporal-aware Graph-RAG (Retrieval-Augmented Generation) system that understands time-sensitive queries and provides accurate, contextual answers.
+**Author:** [SSKG (Shreyas Shashi Kumar Gowda)](https://github.com/SSKG2602)  
 
-Author: SSKG
+---
 
-🎯 Key Capabilities
+## 📦 Features  
 
-Time-Aware Retrieval: Handles queries like “CEO as of today”, “Q4 FY23 revenue”, “between 2019 and 2021”.
+### Core Capabilities  
+- ⏳ **Time-Aware Retrieval**  
+  Handles queries like *“CEO as of today”*, *“Q4 FY23 revenue”*, *“between 2019 and 2021”*.  
 
-Graph-Enhanced RAG: Uses entity relationships for multi-hop reasoning.
+- 🕸 **Graph-Enhanced RAG**  
+  Uses entity relationships for multi-hop reasoning instead of blind keyword search.  
 
-Flexible Model Support: Optimized for Qwen family but easily switchable to any LLM.
+- 🔄 **Flexible Model Support**  
+  Optimized for **Qwen family** but easily switchable to any LLM.  
 
-Deployment Ready: Works locally, on Colab, or cloud (Render).
+- 🚀 **Deployment Ready**  
+  Works locally, in Colab, or in the cloud (**Render, Heroku, Docker**).  
 
-🏗️ System Overview
+- 🧠 **Self-Learning Loop**  
+  Converts repeat failures into updated policies automatically.  
+
+---
+
+## 🏗 System Overview  
+
+**Flow:**  
+
 
 Documents ──▶ TimeGuard Graph-RAG ──▶ Answers (time-aware)
-                 │
-                 ▼
-         ┌─────────────────────┐
-         │ Core Components:    │
-         │  • Chunking         │
-         │  • Entity Extraction│
-         │  • Vector Store     │
-         │  • Graph Store      │
-         │  • Time Parser      │
-         │  • Multi-hop Search │
-         │  • LLM Generation   │
-         └─────────────────────┘
+│
+▼
+┌─────────────────────┐
+│ Core Components: │
+│ • Chunking │
+│ • Entity Extraction│
+│ • Vector Store │
+│ • Graph Store │
+│ • Time Parser │
+│ • Multi-hop Search │
+│ • LLM Generation │
+└─────────────────────┘
 
-📁 Project Structure
+
+
+
+---
+
+## 📁 Project Structure  
+
 
 timeguard-graphrag/
-├── app.py          # Streamlit UI frontend
-├── server.py       # FastAPI backend APIs
-├── run.py          # Zero-dependency bootstrapper
-├── tg_graphrag.py  # Core Graph-RAG engine
-├── timeguard.py    # Time intelligence parser
-├── graph_store.py  # Graph operations (NetworkX + Neo4j)
-├── requirements.txt# Dependencies
-├── Procfile        # Heroku deployment config
-├── render.yaml     # Render deployment config
-└── .gitignore      # Exclude models, logs, data
+├── app.py # Streamlit UI frontend
+├── server.py # FastAPI backend APIs
+├── run.py # Zero-dependency bootstrapper
+├── tg_graphrag.py # Core Graph-RAG engine
+├── timeguard.py # Time intelligence parser
+├── graph_store.py # Graph operations (NetworkX + Neo4j)
+├── requirements.txt # Dependencies
+├── Procfile # Heroku deployment config
+├── render.yaml # Render deployment config
+└── .gitignore # Exclude models, logs, data
 
-File Responsibilities
 
-``: Main engine — embeddings, retrieval, generation, FAISS integration, multi-hop reasoning, temporal filters.
 
-``: Temporal parser — fiscal years, relative dates, explicit ranges, before/after constraints.
 
-``: Knowledge graph — entity types, relationships, optional Neo4j persistence.
+---
 
-``: REST API endpoints with health checks.
+## 🚀 Quick Start  
 
-``: Streamlit frontend for interactive Q&A.
+### Method 1: One-Click Bootstrap (Recommended)  
 
-``: Automates environment setup, backend startup, and frontend launch.
-
-🚀 Quick Start
-
-Method 1: One-Click Bootstrap (Recommended)
-
+```bash
 git clone https://github.com/SSKG2602/timeguard-graphrag.git
 cd timeguard-graphrag
 python run.py
 
-run.py will:
 
-Ensure Python 3.10+
+What run.py does automatically:
+Checks Python 3.10+
+Creates .venv virtual environment
+Installs dependencies + spaCy model
+Launches FastAPI backend (port 8000)
+Launches Streamlit frontend (port 8501)
 
-Create .venv virtual environment
 
-Install requirements & spaCy model
-
-Launch FastAPI backend (port 8000)
-
-Launch Streamlit frontend (port 8501)
-
-Method 2: Manual Setup
-
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-python server.py &
-streamlit run app.py --server.port 8501
-
-⚙️ Configuration
-
-Environment variables (via .env):
+⚙ Configuration
+.env Example:
 
 TIMEZONE=Asia/Kolkata
 DAYFIRST=1
@@ -97,19 +96,9 @@ FISCAL_YEAR_START_MONTH=4
 FISCAL_YEAR_START_DAY=1
 QWEN_MODEL=Qwen/Qwen2.5-0.5B-Instruct
 
-🌐 Deployment
 
-Render: Configured in render.yaml
-
-Heroku: Uses Procfile
-
-Colab: Example notebook provided for testing
-
-Docker: Supported with custom Dockerfile
-
-📊 Example Usage
-
-Ingest Documents
+Example Usage
+1️⃣ Ingest Document
 
 POST http://localhost:8000/ingest
 {
@@ -121,13 +110,15 @@ POST http://localhost:8000/ingest
   }]
 }
 
-Query with Time Awareness
+
+2️⃣ Ask Time-Aware Question
 
 POST http://localhost:8000/answer
 {
   "query": "Who is the CEO as of today?",
   "k": 8
 }
+
 
 Response:
 
@@ -136,38 +127,28 @@ Response:
   "time": {"operator": "AS_OF", "at": "2025-08-28"}
 }
 
-🧠 Advanced Features
 
-Intelligent vs Hard Temporal Filters【50†TGfinalDeploying.pdf】
 
-Conflict detection (e.g., multiple CEOs overlapping)
+Real-World Applications
 
-Multi-hop retrieval only when needed【47†Graph Rag detailed (text‑only).pdf】
 
-Self-learning loop: converts incidents into updated policies
+Financial Analysis – Query company reports with fiscal-year alignment (e.g., “Revenue in Q2 FY25”).
+Policy/Legal Compliance – Ensure regulations are applied as of the right time period.
+Customer Support Bots – Provide version-sensitive answers tied to policy/document changes.
+Historical Research – Explore leadership changes, events, or timelines with evidence.
+Enterprise Knowledge Bases – Keep QA systems free of stale or outdated citations.
 
-📈 Performance & Scaling
 
-Vector search powered by FAISS (with NumPy fallback).
 
-Automatic Qwen model selection based on system RAM/VRAM.
+Performance & Scaling
 
-Memory-aware batch processing.
+Vector search with FAISS (NumPy fallback).
+Auto-selects Qwen model by RAM/VRAM.
+Batch ingestion + caching for repeat queries.
 
-Supports caching for repeated queries.
 
-🔒 Security & Compliance
+Author
 
-PII scrubbing at ingest
-
-RBAC roles for APIs
-
-Audit trails for policy changes
-
-👤 Author
-
-Developed and maintained by Shreyas Shashi Kumar Gowda
-For further ideas and development, email me at gowdashreyas7485@gmail.com.
-Linkedin : https://www.linkedin.com/in/shreyasshashi/
-
+Developed and maintained by SSKG (Shreyas Shashi Kumar Gowda)
+https://www.linkedin.com/in/shreyasshashi/
 
