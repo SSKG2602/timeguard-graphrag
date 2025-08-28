@@ -8,24 +8,21 @@ A temporal-aware **Graph-RAG (Retrieval-Augmented Generation)** system that unde
 ## 📦 Features  
 
 ### Core Capabilities  
-- ⏳ **Time-Aware Retrieval**  
+- **Time-Aware Retrieval**  
   Handles queries like *“CEO as of today”*, *“Q4 FY23 revenue”*, *“between 2019 and 2021”*.  
 
-- 🕸 **Graph-Enhanced RAG**  
+- **Graph-Enhanced RAG**  
   Uses entity relationships for multi-hop reasoning instead of blind keyword search.  
 
-- 🔄 **Flexible Model Support**  
+- **Flexible Model Support**  
   Optimized for **Qwen family** but easily switchable to any LLM.  
 
-- 🚀 **Deployment Ready**  
-  Works locally, in Colab, or in the cloud (**Render, Heroku, Docker**).  
-
-- 🧠 **Self-Learning Loop**  
+- **Self-Learning Loop**  
   Converts repeat failures into updated policies automatically.  
 
 ---
 
-## 🏗 System Overview  
+## System Overview  
 
 **Flow:**  
 
@@ -149,8 +146,9 @@ Auto-selects Qwen model by RAM/VRAM.
 Batch ingestion + caching for repeat queries. 
 ```
 
+```
 Author
 
-Developed and maintained by SSKG (Shreyas Shashi Kumar Gowda)
+Developed and maintained by SSKG (Shreyas Shashi Kumar Gowda),
 https://www.linkedin.com/in/shreyasshashi/
-
+```
