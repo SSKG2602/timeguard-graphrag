@@ -146,8 +146,8 @@ Performance & Scaling
 
 Vector search with FAISS (NumPy fallback).
 Auto-selects Qwen model by RAM/VRAM.
-Batch ingestion + caching for repeat queries.
-
+Batch ingestion + caching for repeat queries. 
+```
 
 Author
 
