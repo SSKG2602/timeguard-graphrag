@@ -30,19 +30,21 @@ A temporal-aware **Graph-RAG (Retrieval-Augmented Generation)** system that unde
 **Flow:**  
 
 
+```
 Documents ──▶ TimeGuard Graph-RAG ──▶ Answers (time-aware)
 │
 ▼
 ┌─────────────────────┐
-│ Core Components: │
-│ • Chunking │
-│ • Entity Extraction│
-│ • Vector Store │
-│ • Graph Store │
-│ • Time Parser │
-│ • Multi-hop Search │
-│ • LLM Generation │
+│   Core Components:  │
+│   • Chunking        │
+│   • Entity Extraction│
+│   • Vector Store     │
+│   • Graph Store      │
+│   • Time Parser      │
+│   • Multi-hop Search │
+│   • LLM Generation   │
 └─────────────────────┘
+```
 
 
 
@@ -52,19 +54,19 @@ Documents ──▶ TimeGuard Graph-RAG ──▶ Answers (time-aware)
 ## 📁 Project Structure  
 
 
+```
 timeguard-graphrag/
-├── app.py # Streamlit UI frontend
-├── server.py # FastAPI backend APIs
-├── run.py # Zero-dependency bootstrapper
-├── tg_graphrag.py # Core Graph-RAG engine
-├── timeguard.py # Time intelligence parser
-├── graph_store.py # Graph operations (NetworkX + Neo4j)
-├── requirements.txt # Dependencies
-├── Procfile # Heroku deployment config
-├── render.yaml # Render deployment config
-└── .gitignore # Exclude models, logs, data
-
-
+├── app.py             # Streamlit UI frontend
+├── server.py          # FastAPI backend APIs
+├── run.py             # Zero-dependency bootstrapper
+├── tg_graphrag.py     # Core Graph-RAG engine
+├── timeguard.py       # Time intelligence parser
+├── graph_store.py     # Graph operations (NetworkX + Neo4j)
+├── requirements.txt   # Dependencies
+├── Procfile           # Heroku deployment config
+├── render.yaml        # Render deployment config
+└── .gitignore         # Exclude models, logs, data
+```
 
 
 ---
