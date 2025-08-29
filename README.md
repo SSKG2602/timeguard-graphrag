@@ -152,6 +152,8 @@ Author
 Developed and maintained by SSKG (Shreyas Shashi Kumar Gowda),
 https://www.linkedin.com/in/shreyasshashi/
 
+view documentatin : https://docs.google.com/document/d/1X8p1HNeJhyRtE4O028IDa5QD6VzQzi4fM5shdp0Cw0U/edit?usp=sharing
+
 view for upcoming : https://www.linkedin.com/feed/update/urn:li:activity:7366915030577029122/
 
 ```
